@@ -34,7 +34,8 @@ def run(cfg,
         calib=None,
         run_global=True,
         save_pkl=False,
-        visualize=False):
+        visualize=False,
+        vis_traj=False):
     
     cap = cv2.VideoCapture(video)
     assert cap.isOpened(), f'Faild to load video file {video}'
@@ -175,7 +176,17 @@ def run(cfg,
         from lib.vis.run_vis import run_vis_on_demo
         with torch.no_grad():
             run_vis_on_demo(cfg, video, results, output_pth, network.smpl, vis_global=run_global)
-        
+
+    # Static world-trajectory overview image
+    if vis_traj:
+        if not run_global:
+            logger.warning('--vis_traj requires world coordinates from DPVO SLAM; skipping '
+                            '(run without --estimate_local_only, with DPVO installed).')
+        else:
+            from lib.vis.run_vis import render_trajectory_snapshot
+            with torch.no_grad():
+                render_trajectory_snapshot(cfg, results, output_pth, network.smpl)
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
@@ -194,7 +205,10 @@ if __name__ == '__main__':
     
     parser.add_argument('--visualize', action='store_true',
                         help='Visualize the output mesh if True')
-    
+
+    parser.add_argument('--vis_traj', action='store_true',
+                        help='Render a single static top-down trajectory overview image if True')
+
     parser.add_argument('--save_pkl', action='store_true',
                         help='Save output as pkl file')
     
@@ -227,7 +241,8 @@ if __name__ == '__main__':
         args.calib, 
         run_global=not args.estimate_local_only, 
         save_pkl=args.save_pkl,
-        visualize=args.visualize)
+        visualize=args.visualize,
+        vis_traj=args.vis_traj)
         
     print()
     logger.info('Done !')

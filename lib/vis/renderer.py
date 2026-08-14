@@ -289,16 +289,30 @@ def create_meshes(verts, faces, colors):
 def get_global_cameras(verts, device, distance=5, position=(-5.0, 5.0, 0.0)):
     positions = torch.tensor([position]).repeat(len(verts), 1)
     targets = verts.mean(1)
-    
+
     directions = targets - positions
     directions = directions / torch.norm(directions, dim=-1).unsqueeze(-1) * distance
     positions = targets - directions
-    
+
     rotation = look_at_rotation(positions, targets, ).mT
     translation = -(rotation @ positions.unsqueeze(-1)).squeeze(-1)
-    
+
     lights = PointLights(device=device, location=[position])
     return rotation, translation, lights
+
+
+def get_global_cameras_static(verts, device, distance=5, position=(-5.0, 5.0, 0.0)):
+    """Single static camera framing the whole point cloud `verts` (N, ..., 3)."""
+    target = verts.reshape(1, -1, 3).mean(1)
+    direction = torch.tensor([position], dtype=torch.float32)
+    direction = direction / torch.norm(direction, dim=-1, keepdim=True)
+    camera_position = target + direction * distance
+
+    rotation = look_at_rotation(camera_position, target).mT
+    translation = -(rotation @ camera_position.unsqueeze(-1)).squeeze(-1)
+
+    lights = PointLights(device=device, location=camera_position.tolist())
+    return rotation.to(device), translation.to(device), lights
 
 
 def _get_global_cameras(verts, device, min_distance=3, chunk_size=100):
